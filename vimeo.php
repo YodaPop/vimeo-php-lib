@@ -195,34 +195,28 @@ class phpVimeo
             $params = $all_params;
         }
 
+        // HTTP Stream context
+        $context = array(
+            'http'  =>  array()
+        );
+
         if (strtoupper($request_method) == 'GET') {
-            $curl_url = $url.'?'.http_build_query($params, '', '&');
-            $curl_opts = array(
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 30
-            );
+            $context['http']['method']  =   'GET';
+            $url = $url.'?'.http_build_query($params, '', '&');
         }
         else if (strtoupper($request_method) == 'POST') {
-            $curl_url = $url;
-            $curl_opts = array(
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => http_build_query($params, '', '&')
-            );
+            $context['http']['method']  =   'POST';
+            $context['http']['content'] =   http_build_query($params, '', '&');
         }
 
         // Authorization header
         if ($use_auth_header) {
-            $curl_opts[CURLOPT_HTTPHEADER] = array($this->_generateAuthHeader($oauth_params));
+            $context['http']['header'] = $this->_generateAuthHeader($oauth_params);
         }
 
         // Call the API
-        $curl = curl_init($curl_url);
-        curl_setopt_array($curl, $curl_opts);
-        $response = curl_exec($curl);
-        $curl_info = curl_getinfo($curl);
-        curl_close($curl);
+        $context = stream_context_create($context);
+        $response = file_get_contents($url, false, $context);
 
         // Cache the response
         if ($this->_cache_enabled && $cache) {
